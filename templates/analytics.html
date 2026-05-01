@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Analytics — PakGov AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0a0f1e;--bg2:#111827;--bg3:#1a2235;
+  --surface:#1f2d45;--surface2:#263548;
+  --border:#2a3a52;--accent:#3b82f6;--accent2:#60a5fa;
+  --gold:#f59e0b;--green:#10b981;--red:#ef4444;--purple:#8b5cf6;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;padding:28px}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 10% 20%,rgba(59,130,246,.06) 0%,transparent 40%),radial-gradient(circle at 90% 80%,rgba(139,92,246,.05) 0%,transparent 40%);pointer-events:none}
+
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.topbar h1{font-family:var(--font-head);font-size:22px;font-weight:800;background:linear-gradient(90deg,#e2e8f0,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.back-link{text-decoration:none;background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:7px 15px;border-radius:9px;font-size:12px;transition:all .15s}
+.back-link:hover{border-color:var(--accent);color:var(--accent2)}
+.refresh-btn{margin-left:auto;background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:7px 15px;border-radius:9px;font-size:12px;cursor:pointer;font-family:var(--font-body);transition:all .15s}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent2)}
+.live-badge{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green);margin-left:8px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:p 2s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* KPI cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;transition:border-color .15s}
+.kpi:hover{border-color:var(--border2)}
+.kpi::before{content:'';position:absolute;inset:0;background:var(--kpi-glow);opacity:.06;pointer-events:none}
+.kpi-icon{font-size:22px;margin-bottom:10px}
+.kpi-val{font-family:var(--font-head);font-size:34px;font-weight:800;line-height:1;color:var(--kpi-color)}
+.kpi-lbl{font-size:12px;color:var(--text3);margin-top:7px}
+
+/* Chart grid */
+.chart-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:22px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px}
+.card h2{font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--text);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.card h2 span{font-size:11px;color:var(--text3);font-family:var(--font-body);font-weight:400;margin-left:auto}
+
+/* Table */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px}
+.table-card h2{font-family:var(--font-head);font-size:14px;font-weight:700;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 14px;background:var(--bg3);color:var(--text3);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+th:first-child{border-radius:8px 0 0 8px}th:last-child{border-radius:0 8px 8px 0}
+td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
+tr:last-child td{border-bottom:none}
+tr:hover td{color:var(--text);background:rgba(255,255,255,.02)}
+.empty{color:var(--text3);font-style:italic;font-size:13px;padding:18px 0;text-align:center}
+.ts-cell{color:var(--text3);font-size:11px;white-space:nowrap}
+
+@media(max-width:700px){.chart-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/" class="back-link">← Chat</a>
+  <h1>Analytics Dashboard</h1>
+  <div class="live-badge"><div class="pulse"></div>Live</div>
+  <button class="refresh-btn" onclick="load()">↻ Refresh</button>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi" style="--kpi-color:var(--accent2);--kpi-glow:linear-gradient(135deg,#3b82f6,#1d4ed8)">
+    <div class="kpi-icon">💬</div>
+    <div class="kpi-val" id="k1">—</div>
+    <div class="kpi-lbl">Total Conversations</div>
+  </div>
+  <div class="kpi" style="--kpi-color:var(--green);--kpi-glow:linear-gradient(135deg,#10b981,#059669)">
+    <div class="kpi-icon">✅</div>
+    <div class="kpi-val" id="k2">—</div>
+    <div class="kpi-lbl">Answered Queries</div>
+  </div>
+  <div class="kpi" style="--kpi-color:var(--red);--kpi-glow:linear-gradient(135deg,#ef4444,#dc2626)">
+    <div class="kpi-icon">❓</div>
+    <div class="kpi-val" id="k3">—</div>
+    <div class="kpi-lbl">Unanswered Queries</div>
+  </div>
+  <div class="kpi" style="--kpi-color:var(--gold);--kpi-glow:linear-gradient(135deg,#f59e0b,#d97706)">
+    <div class="kpi-icon">🎯</div>
+    <div class="kpi-val" id="k4">—</div>
+    <div class="kpi-lbl">Avg Confidence</div>
+  </div>
+</div>
+
+<div class="chart-grid">
+  <div class="card">
+    <h2>Queries by Category <span>Top categories</span></h2>
+    <canvas id="barChart" height="180"></canvas>
+  </div>
+  <div class="card">
+    <h2>Answer Rate <span>Overall</span></h2>
+    <canvas id="pieChart" height="180"></canvas>
+  </div>
+</div>
+
+<div class="table-card">
+  <h2>Recent Unanswered Queries</h2>
+  <div id="tbl"></div>
+</div>
+
+<script>
+let bar,pie;
+const COLORS=["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#14b8a6","#f97316"];
+
+async function load(){
+  const d=await fetch("/api/analytics").then(r=>r.json());
+  document.getElementById("k1").textContent=d.total_chats||0;
+  document.getElementById("k2").textContent=d.answered||0;
+  document.getElementById("k3").textContent=d.unanswered_count||0;
+  document.getElementById("k4").textContent=(d.avg_score||0)+"%";
+
+  Chart.defaults.color=getComputedStyle(document.documentElement).getPropertyValue("--text3").trim()||"#64748b";
+
+  if(bar)bar.destroy();
+  bar=new Chart(document.getElementById("barChart"),{
+    type:"bar",
+    data:{
+      labels:d.by_category.map(r=>r.category),
+      datasets:[{
+        label:"Queries",data:d.by_category.map(r=>r.hits),
+        backgroundColor:COLORS.slice(0,d.by_category.length),
+        borderRadius:8,borderSkipped:false,
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:"rgba(42,58,82,.6)"},ticks:{color:"#64748b",font:{size:11}}},
+        y:{beginAtZero:true,grid:{color:"rgba(42,58,82,.6)"},ticks:{stepSize:1,color:"#64748b",font:{size:11}}}
+      }
+    }
+  });
+
+  if(pie)pie.destroy();
+  pie=new Chart(document.getElementById("pieChart"),{
+    type:"doughnut",
+    data:{
+      labels:["Answered","Unanswered"],
+      datasets:[{data:[d.answered,d.unanswered_count],backgroundColor:["#10b981","#ef4444"],borderWidth:0,hoverOffset:6}]
+    },
+    options:{
+      responsive:true,cutout:"68%",
+      plugins:{legend:{position:"bottom",labels:{color:"#94a3b8",font:{size:12},boxWidth:10,padding:14}}}
+    }
+  });
+
+  const el=document.getElementById("tbl");
+  if(!d.recent_unanswered?.length){
+    el.innerHTML=`<p class="empty">🎉 No unanswered queries yet!</p>`;return;
+  }
+  let h=`<table><thead><tr><th>#</th><th>Query</th><th>Time</th></tr></thead><tbody>`;
+  d.recent_unanswered.forEach((r,i)=>{
+    h+=`<tr><td style="color:var(--text3)">${i+1}</td><td>${esc(r.query)}</td><td class="ts-cell">${r.timestamp}</td></tr>`;
+  });
+  el.innerHTML=h+`</tbody></table>`;
+}
+
+function esc(t){return(t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+load();
+setInterval(load,30000);
+</script>
+</body>
+</html>
