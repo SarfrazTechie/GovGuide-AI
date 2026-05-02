@@ -35,22 +35,138 @@ from database import get_all_faqs, log_chat, log_unanswered
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-SBERT_MODEL   = "all-MiniLM-L6-v2"   # fast 384-dim model, works offline
-SBERT_THRESH  = 0.35                  # minimum SBERT score to accept
-TFIDF_WEIGHT  = 0.25                  # how much TF-IDF boosts the final score
-MEMORY_TURNS  = 5                     # conversation turns to remember
+SBERT_MODEL   = "all-MiniLM-L6-v2"
+SBERT_THRESH  = 0.18
+TFIDF_WEIGHT  = 0.35
+MEMORY_TURNS  = 5
 
 STOP_WORDS = set(stopwords.words("english"))
 STOP_WORDS.update({"pakistan", "pakistani", "please", "want", "need",
                    "tell", "know", "hello", "hi", "hey"})
 
+# ── Protected Pakistani govt terms (manual fuzzy override) ───────────────────
+PROTECTED_TERMS = {
+    # ── BISP typos ──────────────────────────────────────────────────
+    "bsip": "bisp", "bsop": "bisp", "bips": "bisp", "biap": "bisp",
+    "bsp": "bisp", "bisp": "bisp",
+
+    # ── NADRA typos ─────────────────────────────────────────────────
+    "nadar": "nadra", "naddr": "nadra", "nadr": "nadra",
+    "ndara": "nadra", "nadra": "nadra",
+
+    # ── CNIC typos ──────────────────────────────────────────────────
+    "cnis": "cnic", "cnci": "cnic", "cnci": "cnic",
+    "cnic": "cnic", "cnis": "cnic", "cni": "cnic",
+
+    # ── Passport typos ──────────────────────────────────────────────
+    "passort": "passport", "passprt": "passport", "pasport": "passport",
+    "paaspot": "passport", "passpost": "passport", "passprot": "passport",
+    "passpot": "passport", "passport": "passport",
+
+    # ── FBR typos ───────────────────────────────────────────────────
+    "fbrr": "fbr", "fbr": "fbr", "fbro": "fbr",
+
+    # ── WAPDA typos ─────────────────────────────────────────────────
+    "wapd": "wapda", "wapda": "wapda", "wapada": "wapda",
+
+    # ── SNGPL typos ─────────────────────────────────────────────────
+    "sngpl": "sngpl", "sngp": "sngpl", "sngpal": "sngpl",
+
+    # ── Tax typos ───────────────────────────────────────────────────
+    "tex": "tax", "taxx": "tax", "txe": "tax", "txa": "tax",
+
+    # ── Driving License typos ────────────────────────────────────────
+    "drivingg": "driving", "drivng": "driving", "drving": "driving",
+    "licensce": "license", "licnese": "license", "lisence": "license",
+    "licanse": "license", "liscense": "license",
+
+    # ── Electricity typos ───────────────────────────────────────────
+    "elecricity": "electricity", "electrcity": "electricity",
+    "electicity": "electricity", "elecrity": "electricity",
+    "electricty": "electricity", "elecrticity": "electricity",
+
+    # ── Common English typos ─────────────────────────────────────────
+    "onlne": "online", "onlie": "online", "onlin": "online",
+    "chek": "check", "chcek": "check", "chekc": "check",
+    "staus": "status", "stauts": "status", "statuss": "status",
+    "appply": "apply", "applu": "apply", "appl": "apply",
+    "registraion": "registration", "registraton": "registration",
+    "regestration": "registration", "registraction": "registration",
+    "documens": "documents", "documnts": "documents", "documants": "documents",
+    "requirments": "requirements", "requiremnts": "requirements",
+    "informaton": "information", "informtion": "information",
+    "offce": "office", "ofice": "office", "offico": "office",
+    "adress": "address", "addres": "address", "addrss": "address",
+    "renewl": "renewal", "renwal": "renewal", "renew": "renew",
+    "expird": "expired", "expirred": "expired", "expird": "expired",
+    "paymet": "payment", "paymnt": "payment", "paiment": "payment",
+    "feee": "fee", "feeee": "fee", "fe": "fee",
+    "dat": "date", "datte": "date", "daet": "date",
+    "lastt": "last", "lat": "last",
+    "reciev": "receive", "receve": "receive", "recive": "receive",
+    "submitt": "submit", "submt": "submit", "subimt": "submit",
+    "dowload": "download", "downlod": "download", "downlaod": "download",
+    "verificaton": "verification", "verifcation": "verification",
+    "certficate": "certificate", "certificte": "certificate",
+    "cetificate": "certificate", "certifcate": "certificate",
+    "gass": "gas", "gaas": "gas", "gaz": "gas",
+
+    # ── Roman Urdu — common words ────────────────────────────────────
+    "kaise": "kaise", "kron": "kron", "krna": "krna", "karna": "karna",
+    "kese": "kese", "kya": "kya", "hai": "hai", "hain": "hain",
+    "mujhe": "mujhe", "muje": "mujhe", "meri": "meri", "mera": "mera",
+    "karo": "karo", "karo": "karo", "kren": "kren", "karen": "karen",
+    "jana": "jana", "janna": "jana", "wala": "wala", "wali": "wali",
+    "apna": "apna", "apni": "apni", "apne": "apne",
+    "bijli": "bijli", "bijlee": "bijli", "bigly": "bijli",
+    "bharo": "bharo", "bharon": "bharon", "bharein": "bharein",
+    "bhrein": "bharein", "bhren": "bharein", "bhrna": "bharna",
+    "banwana": "banwana", "banwna": "banwana", "bnwana": "banwana",
+    "chahiye": "chahiye", "chaye": "chahiye", "chaiye": "chahiye",
+    "nikalna": "nikalna", "niklna": "nikalna",
+    "lagta": "lagta", "lgta": "lagta",
+    "milega": "milega", "milta": "milta", "mile": "mile",
+    "kitna": "kitna", "kitne": "kitne", "kitni": "kitni",
+    "waqt": "waqt", "wakt": "waqt", "vaqt": "waqt",
+    "paisa": "paisa", "pesa": "paisa", "paise": "paise",
+    "ghar": "ghar", "ghur": "ghar",
+    "zyada": "zyada", "ziyada": "zyada", "ziada": "zyada",
+    "zaruri": "zaruri", "zarori": "zaruri",
+    "mushkil": "mushkil", "mushkel": "mushkil",
+    "aasan": "aasan", "asan": "aasan", "asaan": "aasan",
+    "tarika": "tarika", "treeka": "tarika", "tariqa": "tarika",
+    "number": "number", "numbre": "number", "nombor": "number",
+    "mobile": "mobile", "moble": "mobile", "mobil": "mobile",
+    "online": "online", "status": "status", "check": "check",
+
+    # ── Roman Urdu — govt specific ───────────────────────────────────
+    "shnaakhti": "shnaakhti", "shanakhti": "shnaakhti",
+    "kaghzat": "kaghzat", "kaghzaat": "kaghzat",
+    "darkhast": "darkhast", "darkwast": "darkhast",
+    "mahkma": "mahkma", "mahkama": "mahkma",
+    "idarah": "idarah", "idara": "idarah",
+    "raseed": "raseed", "rasid": "raseed",
+    "tijarat": "tijarat", "tijarat": "tijarat",
+    "mulazmat": "mulazmat", "mulazmt": "mulazmat",
+    "tankhwah": "tankhwah", "tankhuah": "tankhwah",
+    "sarkari": "sarkari", "sarkaari": "sarkari",
+    "mehkma": "mehkma", "mehkama": "mehkma",
+}
 
 # ── Preprocessor ─────────────────────────────────────────────────────────────
 
 class Preprocessor:
     def __init__(self):
-        self.lemmatizer  = WordNetLemmatizer()
-        self.spell       = SpellChecker()
+        self.lemmatizer = WordNetLemmatizer()
+        self.spell      = SpellChecker()
+        self.spell.word_frequency.load_words([
+            'nicop', 'cnic', 'nadra', 'bisp', 'wapda', 'sngpl', 'ptcl',
+            'fbr', 'ntn', 'iris', 'dgip', 'lesco', 'iesco', 'mepco',
+            'pesco', 'psid', 'psv', 'ltv', 'htv', 'idp', 'pcc',
+            'domicile', 'fard', 'malkiat', 'intiqal', 'patwari',
+            'kafaalat', 'nashonuma', 'wazaif', 'challan', 'biometrics'
+            "gas", "sngpl", "SNGPL",
+        ])
 
     def clean(self, text: str) -> str:
         text = text.lower()
@@ -62,8 +178,12 @@ class Preprocessor:
         words     = text.split()
         corrected = []
         for w in words:
-            fixed = self.spell.correction(w)
-            corrected.append(fixed if fixed else w)
+            lower_w = w.lower()
+            if lower_w in PROTECTED_TERMS:
+                corrected.append(PROTECTED_TERMS[lower_w])
+            else:
+                fixed = self.spell.correction(w)
+                corrected.append(fixed if fixed else w)
         return " ".join(corrected)
 
     def preprocess(self, text: str, spell_check: bool = True) -> str:
@@ -79,8 +199,6 @@ class Preprocessor:
 # ── Conversation Memory ───────────────────────────────────────────────────────
 
 class ConversationMemory:
-    """Stores last N (query, answer) pairs per session."""
-
     def __init__(self, max_turns: int = MEMORY_TURNS):
         self._sessions: dict[str, deque] = {}
         self.max_turns = max_turns
@@ -98,7 +216,7 @@ class ConversationMemory:
         if not history:
             return ""
         lines = []
-        for turn in history[-3:]:          # use only last 3 turns as context
+        for turn in history[-3:]:
             lines.append(f"User: {turn['query']}")
             lines.append(f"Bot: {turn['answer'][:120]}...")
         return "\n".join(lines)
@@ -110,65 +228,46 @@ class ConversationMemory:
 # ── Main NLP Engine ───────────────────────────────────────────────────────────
 
 class AdvancedFAQEngine:
-    """
-    Two-stage retrieval:
-      Stage 1 — Sentence-BERT: dense semantic search, returns top-5 candidates
-      Stage 2 — TF-IDF reranker: sparse keyword boost on top-5, picks best
-    Final score = 0.75 * sbert_score + 0.25 * tfidf_score
-    """
-
     def __init__(self):
         print("[Engine] Loading Sentence-BERT model...")
-        self.sbert       = SentenceTransformer(SBERT_MODEL)
+        self.sbert        = SentenceTransformer(SBERT_MODEL)
         self.preprocessor = Preprocessor()
         self.memory       = ConversationMemory()
 
         self.faqs           = []
-        self.faq_embeddings = None   # SBERT embeddings  (N × 384)
-        self.tfidf_matrix   = None   # TF-IDF matrix     (N × vocab)
+        self.faq_embeddings = None
+        self.tfidf_matrix   = None
         self.vectorizer     = TfidfVectorizer(ngram_range=(1, 2))
 
         self._build_index()
-
-    # ── Index building ────────────────────────────────────────────────────────
 
     def _build_index(self):
         self.faqs = get_all_faqs()
         questions = [f["question"] for f in self.faqs]
 
-        # SBERT embeddings (raw questions — SBERT handles its own tokenization)
         print(f"[Engine] Encoding {len(questions)} FAQs with SBERT...")
         self.faq_embeddings = self.sbert.encode(questions, convert_to_tensor=True)
 
-        # TF-IDF on preprocessed questions
         preprocessed = [self.preprocessor.preprocess(q) for q in questions]
         self.tfidf_matrix = self.vectorizer.fit_transform(preprocessed)
         print("[Engine] Index built successfully.")
 
     def rebuild_index(self):
-        """Call this if FAQs are updated at runtime."""
         self._build_index()
-
-    # ── Core retrieval ─────────────────────────────────────────────────────────
 
     def get_answer(self, user_query: str, session_id: str = "default",
                    category_filter: Optional[str] = None) -> dict:
-        """
-        Full pipeline:
-          1. Preprocess + spell-correct query
-          2. SBERT semantic search → top-5 candidates
-          3. TF-IDF rerank → best match
-          4. Threshold check → answer or fallback
-          5. Log to DB + store in memory
-        """
+
         # Step 1: Preprocess
         corrected_query = self.preprocessor.correct_spelling(user_query)
         processed       = self.preprocessor.preprocess(corrected_query)
 
+        show_suggestion = corrected_query.strip().lower() != user_query.strip().lower()
+
         if not processed.strip():
             return self._fallback(user_query, session_id, "Please add more details to your question.")
 
-        # Step 2: Apply category filter (filter self.faqs indices)
+        # Step 2: Category filter
         if category_filter:
             indices = [i for i, f in enumerate(self.faqs)
                        if f["category"].lower() == category_filter.lower()]
@@ -178,30 +277,28 @@ class AdvancedFAQEngine:
         if not indices:
             return self._fallback(user_query, session_id, f"No FAQs found for category '{category_filter}'.")
 
-        # Step 3: SBERT search on filtered indices
-        query_emb   = self.sbert.encode(corrected_query, convert_to_tensor=True)
-        subset_embs = self.faq_embeddings[indices]
+        # Step 3: SBERT search
+        query_emb    = self.sbert.encode(corrected_query, convert_to_tensor=True)
+        subset_embs  = self.faq_embeddings[indices]
         sbert_scores = util.cos_sim(query_emb, subset_embs)[0].cpu().numpy()
 
-        # Top-5 candidates from SBERT
-        top5_local = np.argsort(sbert_scores)[::-1][:5]
+        top5_local  = np.argsort(sbert_scores)[::-1][:8]
         top5_global = [indices[i] for i in top5_local]
 
-        # Step 4: TF-IDF rerank on top-5
-        user_vec    = self.vectorizer.transform([processed])
-        tfidf_sub   = self.tfidf_matrix[top5_global]
+        # Step 4: TF-IDF rerank
+        user_vec     = self.vectorizer.transform([processed])
+        tfidf_sub    = self.tfidf_matrix[top5_global]
         tfidf_scores = cosine_similarity(user_vec, tfidf_sub).flatten()
 
-        # Combined score
         combined = np.array([
             (1 - TFIDF_WEIGHT) * sbert_scores[top5_local[k]] + TFIDF_WEIGHT * tfidf_scores[k]
             for k in range(len(top5_local))
         ])
 
-        best_k      = int(np.argmax(combined))
-        best_idx    = top5_global[best_k]
-        best_score  = float(combined[best_k])
-        best_sbert  = float(sbert_scores[top5_local[best_k]])
+        best_k     = int(np.argmax(combined))
+        best_idx   = top5_global[best_k]
+        best_score = float(combined[best_k])
+        best_sbert = float(sbert_scores[top5_local[best_k]])
 
         matched_faq = self.faqs[best_idx]
 
@@ -214,7 +311,6 @@ class AdvancedFAQEngine:
                 "or contact the relevant government office directly."
             )
 
-        # Build top-3 suggestions list
         suggestions = []
         for k in range(min(3, len(top5_global))):
             gi = top5_global[k]
@@ -224,10 +320,8 @@ class AdvancedFAQEngine:
                 "score":    round(float(combined[k]), 3),
             })
 
-        # Step 6: Context from conversation memory
         context = self.memory.build_context_string(session_id)
 
-        # Step 7: Log & store
         log_chat(session_id, user_query, matched_faq["answer"],
                  matched_faq["question"], best_score)
         self.memory.add(session_id, user_query, matched_faq["answer"])
@@ -240,12 +334,11 @@ class AdvancedFAQEngine:
             "faq_id":           matched_faq["id"],
             "score":            round(best_score, 4),
             "sbert_score":      round(best_sbert, 4),
-            "corrected_query":  corrected_query if corrected_query != user_query else None,
-            "suggestions":      suggestions[1:],   # exclude best itself
+            "corrected_query":  corrected_query if show_suggestion else None,
+            "show_suggestion":  show_suggestion,
+            "suggestions":      suggestions[1:],
             "context_used":     bool(context),
         }
-
-    # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _fallback(self, query: str, session_id: str, message: str) -> dict:
         self.memory.add(session_id, query, message)
@@ -258,6 +351,7 @@ class AdvancedFAQEngine:
             "score":            0.0,
             "sbert_score":      0.0,
             "corrected_query":  None,
+            "show_suggestion":  False,
             "suggestions":      [],
             "context_used":     False,
         }
@@ -288,8 +382,8 @@ if __name__ == "__main__":
         r = engine.get_answer(q, session_id="test", category_filter=cat)
         status = "✓" if r["found"] else "✗"
         print(f"\n{status}  Query   : {q}")
-        if r["corrected_query"]:
-            print(f"   Corrected: {r['corrected_query']}")
+        if r["show_suggestion"]:
+            print(f"   Did you mean: {r['corrected_query']}")
         print(f"   Category : {r['category']}  |  Score: {r['score']}  |  SBERT: {r['sbert_score']}")
         print(f"   Answer   : {r['answer'][:90]}...")
     print("="*65)
