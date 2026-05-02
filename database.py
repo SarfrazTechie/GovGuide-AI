@@ -109,13 +109,13 @@ def _seed_faqs(cursor):
         ("Driving License", "How to get a driving license in Pakistan?",
          "Steps to get driving license: (1) Visit district Licensing Authority with CNIC, photos, blood group card, (2) Apply for Learner Permit (valid 6 weeks), (3) Practice driving, (4) Return for written test (traffic rules), (5) Give practical driving test, (6) Pay fee and collect license. Total process takes 6-8 weeks."),
 
-        ("Driving License", "What is the driving license fee?",
-         "Driving license fee by province: Punjab: New = Rs.990, Renewal = Rs.790. Sindh: New = Rs.1000, Renewal = Rs.900. KPK: New = Rs.850, Renewal = Rs.750. Balochistan: New = Rs.800. International Driving Permit = Rs.1500 extra. Fees may vary slightly by district."),
+        ("Driving License", "What is the driving license fee? How much does license cost?",
+         "Driving license fee by province: (1) Punjab: New = Rs.990, Renewal = Rs.790, (2) Sindh: New = Rs.1000, Renewal = Rs.900, (3) KPK: New = Rs.850, Renewal = Rs.750, (4) Balochistan: New = Rs.800, (5) International Driving Permit = Rs.1500 extra. Fees may vary slightly by district."),
 
         ("Driving License", "How to renew expired driving license?",
-         "Driving license renewal: Visit district Licensing Authority with old license, CNIC, photos, and renewal fee. Expired less than 1 year = no test required, direct renewal. Expired 1-3 years = may need written test only. Expired more than 3 years = full test required again. Online renewal available in some districts."),
+         "Driving license renewal steps: (1) Visit district Licensing Authority with old license, CNIC, photos and renewal fee, (2) Expired less than 1 year = no test required, direct renewal, (3) Expired 1-3 years = written test only, (4) Expired more than 3 years = full test required again, (5) Online renewal available in some districts. Fee: Punjab Rs.790, Sindh Rs.900."),
 
-        ("Driving License", "What are the categories of driving license?",
+        ("Driving License", "What are the types and categories of driving license in Pakistan?",
          "Pakistani driving license categories: Motorcycle (LTV-M), Car/Jeep (LTV), Light Commercial Vehicle, Heavy Transport Vehicle (HTV), PSV (Public Service Vehicle for buses). Each category requires separate test. You can apply for multiple categories on same license."),
 
         ("Driving License", "How to get international driving permit?",
