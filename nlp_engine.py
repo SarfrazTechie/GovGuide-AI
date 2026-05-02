@@ -36,7 +36,7 @@ from database import get_all_faqs, log_chat, log_unanswered
 # ── Constants ────────────────────────────────────────────────────────────────
 
 SBERT_MODEL   = "all-MiniLM-L6-v2"
-SBERT_THRESH  = 0.18
+SBERT_THRESH  = 0.20
 TFIDF_WEIGHT  = 0.35
 MEMORY_TURNS  = 5
 
@@ -164,8 +164,12 @@ class Preprocessor:
             'fbr', 'ntn', 'iris', 'dgip', 'lesco', 'iesco', 'mepco',
             'pesco', 'psid', 'psv', 'ltv', 'htv', 'idp', 'pcc',
             'domicile', 'fard', 'malkiat', 'intiqal', 'patwari',
-            'kafaalat', 'nashonuma', 'wazaif', 'challan', 'biometrics'
-            "gas", "sngpl", "SNGPL",
+            'kafaalat', 'nashonuma', 'wazaif', 'challan', 'biometrics',
+            'passport', 'pakistan', 'punjab', 'sindh', 'islamabad',
+            'balochistan', 'karachi', 'lahore', 'peshawar', 'quetta',
+            'rupees', 'rupee', 'rs', 'atm', 'sms', 'pdf', 'qr',
+            'helpline', 'tehsil', 'kpk', 'tma', 'cvt', 'gas',
+            'plra', 'hbl', 'mcb', 'jazzcash', 'easypaisa'
         ])
 
     def clean(self, text: str) -> str:
@@ -262,8 +266,8 @@ class AdvancedFAQEngine:
         corrected_query = self.preprocessor.correct_spelling(user_query)
         processed       = self.preprocessor.preprocess(corrected_query)
 
-        show_suggestion = corrected_query.strip().lower() != user_query.strip().lower()
-
+        # Only show suggestion if meaningful correction happened
+        show_suggestion = False
         if not processed.strip():
             return self._fallback(user_query, session_id, "Please add more details to your question.")
 

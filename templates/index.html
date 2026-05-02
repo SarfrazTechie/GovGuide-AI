@@ -45,7 +45,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 @keyframes fill{to{width:100%}}
 
 /* SIDEBAR */
-.sidebar{width:252px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:background .3s}
+.sidebar{width:252px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:background .3s;position:relative}
 .sb-brand{padding:18px 16px 14px;border-bottom:1px solid var(--border)}
 .sb-logo-row{display:flex;align-items:center;gap:9px;margin-bottom:2px}
 .sb-icon{width:30px;height:30px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
@@ -63,6 +63,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .sb-bottom{padding:10px 8px;border-top:1px solid var(--border);display:flex;gap:6px}
 .sb-btn{flex:1;padding:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .15s;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center}
 .sb-btn:hover{background:var(--border2);color:var(--text)}
+/* Resizable sidebar divider */
+.sb-resizer{width:5px;cursor:col-resize;background:transparent;position:absolute;right:0;top:0;bottom:0;z-index:10;transition:background .15s}
+.sb-resizer:hover{background:var(--accent)}
+
 /* Sidebar hover + sub-items */
 .cat-btn{position:relative}
 .cat-btn:hover{background:var(--accent-soft);color:var(--accent);border-left:3px solid var(--accent);padding-left:7px}
@@ -126,11 +130,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .av{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
 .msg.user .av{background:var(--accent);font-weight:700;color:#fff;font-size:11px}
 .msg.bot .av{background:var(--bg3);border:1px solid var(--border)}
-.bubble{max-width:74%;padding:12px 14px;border-radius:14px;font-size:13.5px;line-height:1.65;transition:background .3s}
+.bubble{max-width:52%;padding:11px 14px;border-radius:14px;font-size:14.5px;line-height:1.7;transition:background .3s}
 .msg.user .bubble{background:var(--bubble-user-bg);color:var(--bubble-user-text);border-bottom-right-radius:4px}
-.msg.bot .bubble{background:var(--bubble-bot-bg);border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text)}
-.corr-note{font-size:11px;color:#d97706;margin-bottom:8px;display:flex;align-items:center;gap:5px}
-.cat-tag{display:inline-flex;align-items:center;font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:3px 10px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:99px;color:var(--accent);margin-bottom:9px}
+.msg.bot .bubble{background:var(--bubble-bot-bg);border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text);border-left:3px solid var(--accent);box-shadow:0 2px 8px rgba(29,78,216,.08)}
+.corr-note{font-size:13px;color:#d97706;margin-bottom:8px;display:flex;align-items:center;gap:6px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px}
+.cat-tag{display:inline-flex;align-items:center;font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:3px 10px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:99px;color:var(--accent);margin-bottom:9px}
 .answer-text{white-space:pre-wrap}
 .conf-row{margin-top:11px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px}
 .conf-lbl{font-size:10px;color:var(--text3);white-space:nowrap}
@@ -158,8 +162,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 @keyframes bop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
 
 /* Input */
-.input-area{padding:12px 22px 16px;border-top:1px solid var(--border);background:var(--bg2);transition:background .3s}
-.input-box{display:flex;gap:8px;background:var(--input-bg);border:1.5px solid var(--border);border-radius:12px;padding:8px 8px 8px 16px;transition:border-color .2s,background .2s}
+.input-area{padding:8px 22px 12px;border-top:1px solid var(--border);background:var(--bg2);transition:background .3s}
+.input-box{display:flex;gap:8px;background:var(--input-bg);border:1.5px solid var(--border);border-radius:12px;padding:6px 6px 6px 14px;transition:border-color .2s,background .2s;max-width:700px;margin:0 auto;width:100%}
 .input-box:focus-within{border-color:var(--accent);background:var(--input-focus)}
 #userInput{flex:1;background:none;border:none;outline:none;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text)}
 #userInput::placeholder{color:var(--text3)}
@@ -267,6 +271,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
     <button class="sb-btn" onclick="clearChat()">New Chat</button>
     <a href="/analytics" class="sb-btn">Analytics</a>
   </div>
+  <div class="sb-resizer" id="sbResizer"></div>
 </aside>
 
 <!-- MAIN -->
@@ -456,7 +461,7 @@ async function send(text){
       // FIX: agar show_suggestion true hai to SIRF
       // "Did you mean?" dikhao aur return — answer mat dikhao
       // =====================================================
-      if(d.corrected_query && d.score < 0.35){
+      if(d.corrected_query && d.score < 0.30 && !d.found){
         h += `<div class="corr-note">
                 🔍 Did you mean:
                 "<span
@@ -545,6 +550,30 @@ async function clearChat(){
   </div>`;
   msgsEl.appendChild(w);
 }
+// Sidebar resize
+const sbResizer = document.getElementById("sbResizer");
+const sidebar   = document.querySelector(".sidebar");
+let isResizing  = false;
+
+sbResizer.addEventListener("mousedown", e => {
+  isResizing = true;
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+});
+
+document.addEventListener("mousemove", e => {
+  if(!isResizing) return;
+  const newWidth = e.clientX;
+  if(newWidth >= 180 && newWidth <= 380){
+    sidebar.style.width = newWidth + "px";
+  }
+});
+
+document.addEventListener("mouseup", () => {
+  isResizing = false;
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+});
 
 function esc(t){
   return (t||"")
