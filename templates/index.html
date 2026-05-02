@@ -63,6 +63,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .sb-bottom{padding:10px 8px;border-top:1px solid var(--border);display:flex;gap:6px}
 .sb-btn{flex:1;padding:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .15s;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center}
 .sb-btn:hover{background:var(--border2);color:var(--text)}
+/* Chat History */
+.sb-history{padding:0 8px;margin-bottom:8px}
+.sb-history-label{font-size:10px;font-weight:600;letter-spacing:1.1px;color:var(--text3);text-transform:uppercase;padding:10px 8px 6px}
+.history-item{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;cursor:pointer;transition:all .15s;margin-bottom:2px;group:hover}
+.history-item:hover{background:var(--bg3)}
+.history-item-icon{font-size:12px;flex-shrink:0;color:var(--text3)}
+.history-item-text{flex:1;font-size:12px;color:var(--text2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.history-item-time{font-size:10px;color:var(--text3);flex-shrink:0}
+.history-item-del{font-size:11px;color:var(--text3);opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px}
+.history-item:hover .history-item-del{opacity:1}
+.history-item-del:hover{color:var(--red);background:rgba(239,68,68,.1)}
+.history-empty{font-size:11px;color:var(--text3);padding:8px 10px;font-style:italic}
 /* Resizable sidebar divider */
 .sb-resizer{width:5px;cursor:col-resize;background:transparent;position:absolute;right:0;top:0;bottom:0;z-index:10;transition:background .15s}
 .sb-resizer:hover{background:var(--accent)}
@@ -191,7 +203,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
     </div>
     <p>Pakistan Govt Services</p>
   </div>
-  <div class="sb-label">Topics</div>
+ <!-- Chat History -->
+<div class="sb-history-label">Recent Chats</div>
+<div class="sb-history" id="sbHistory">
+  <div class="history-empty">No previous chats</div>
+</div>
   <div class="sb-cats">
   <button class="cat-btn active" data-cat="" onclick="setCat(this)">
     <span class="cat-dot"></span>All Topics
@@ -382,6 +398,64 @@ const inputEl = document.getElementById("userInput");
 let activeCat = "", welcomeGone = false;
 
 inputEl.addEventListener("keydown", e => { if(e.key === "Enter") send(); });
+/* ── Chat History ── */
+let currentSessionId = "session_" + Date.now();
+
+async function loadHistory(){
+  try{
+    const res = await fetch("/api/sessions");
+    const d   = await res.json();
+    const el  = document.getElementById("sbHistory");
+    if(!d.sessions || d.sessions.length === 0){
+      el.innerHTML = `<div class="history-empty">No previous chats</div>`;
+      return;
+    }
+    el.innerHTML = d.sessions.map(s => `
+      <div class="history-item" onclick="loadSession('${s.session_id}')">
+        <span class="history-item-icon">💬</span>
+        <span class="history-item-text" title="${esc(s.title)}">${esc(s.title)}</span>
+        <span class="history-item-time">${formatTime(s.updated_at)}</span>
+        <button class="history-item-del" onclick="delSession(event,'${s.session_id}')" title="Delete">✕</button>
+      </div>
+    `).join("");
+  } catch(e){ console.error("History load failed", e); }
+}
+
+async function loadSession(sid){
+  try{
+    const res = await fetch(`/api/sessions/${sid}`);
+    const d   = await res.json();
+    msgsEl.innerHTML = "";
+    welcomeGone = true;
+    currentSessionId = sid;
+   d.messages.forEach(m => {
+      addMsg("user", esc(m.user_query));
+      addMsg("bot", `
+        <div class="answer-text">${formatAnswer(m.bot_answer)}</div>
+      `);
+    });
+    scrollBot();
+  } catch(e){ console.error("Session load failed", e); }
+}
+
+async function delSession(e, sid){
+  e.stopPropagation();
+  await fetch(`/api/sessions/${sid}`, {method:"DELETE"});
+  loadHistory();
+}
+
+function formatTime(ts){
+  if(!ts) return "";
+  const d   = new Date(ts + "Z");
+  const now = new Date();
+  const diff = Math.floor((now - d) / 60000);
+  if(diff < 1)   return "Just now";
+  if(diff < 60)  return diff + "m ago";
+  if(diff < 1440) return Math.floor(diff/60) + "h ago";
+  return Math.floor(diff/1440) + "d ago";
+}
+
+loadHistory();
 
 function setCat(el){
   const wasOpen = el.classList.contains("open");
@@ -445,11 +519,22 @@ async function send(text){
   addMsg("user", esc(msg));
   const ty = showTyping();
 
+ // Save session title — sirf pehli message pe
+  if(msgsEl.querySelectorAll('.msg.user').length === 1){
+    fetch("/api/sessions", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        session_id: currentSessionId,
+        title: msg.slice(0, 50)
+      })
+    }).catch(e => console.error("Session save failed", e));
+  }
   try{
     const res = await fetch("/chat",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({message:msg, category:activeCat||null})
+      body:JSON.stringify({message:msg, category:activeCat||null, session_id:currentSessionId})
     });
     const d = await res.json();
     ty.remove();
@@ -486,7 +571,7 @@ async function send(text){
       const vc  = pct>=70 ? "#059669" : pct>=45 ? "#d97706" : "#dc2626";
 
       h += `<div class="cat-tag">✦ ${esc(d.category)}</div>`;
-      h += `<div class="answer-text">${esc(d.answer)}</div>`;
+      h += `<div class="answer-text">${formatAnswer(d.answer)}</div>`;
       h += `<div class="conf-row">
               <span class="conf-lbl">Confidence</span>
               <div class="conf-track">
@@ -510,7 +595,8 @@ async function send(text){
         h += `</div></div>`;
       }
 
-      addMsg("bot", h);
+    addMsg("bot", h);
+      setTimeout(()=>loadHistory(), 500);
 
     } else {
       // Query bilkul match nahi hui
@@ -518,7 +604,8 @@ async function send(text){
       const av = document.createElement("div"); av.className = "av"; av.textContent = "🤖";
       const b  = document.createElement("div"); b.className = "bubble";
       b.innerHTML = `<div class="fallback">⚠️ &nbsp;${esc(d.answer)}</div>`;
-      w.appendChild(av); w.appendChild(b); msgsEl.appendChild(w); scrollBot();
+     w.appendChild(av); w.appendChild(b); msgsEl.appendChild(w); scrollBot();
+    setTimeout(()=>loadHistory(), 500);
     }
 
   } catch(e){
@@ -538,7 +625,8 @@ async function fb(id, helpful, btn){
 }
 
 async function clearChat(){
-  await fetch("/clear/default",{method:"POST"});
+  await fetch(`/clear/${currentSessionId}`, {method:"POST"});
+  currentSessionId = "session_" + Date.now();
   msgsEl.innerHTML = "";
   welcomeGone = false;
   const w = document.createElement("div"); w.className = "welcome"; w.id = "welcomeEl";
@@ -574,6 +662,21 @@ document.addEventListener("mouseup", () => {
   document.body.style.cursor = "";
   document.body.style.userSelect = "";
 });
+
+function formatAnswer(text){
+  if(!text) return "";
+  return text
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    // (1) (2) (3) wale points ko new line pe le jao
+    .replace(/\s*\((\d+)\)\s*/g, "<br><b>($1)</b> ")
+    // Step 1: Step 2: wale format
+    .replace(/(Step\s*\d+:)/gi, "<br><b>$1</b>")
+    // Dash bullets
+    .replace(/\s*—\s*/g, "<br>— ")
+    .trim();
+}
 
 function esc(t){
   return (t||"")

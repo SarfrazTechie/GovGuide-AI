@@ -43,10 +43,12 @@ def init_db():
             timestamp    DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS unanswered_queries (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            query     TEXT    NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT    NOT NULL UNIQUE,
+            title      TEXT    NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
@@ -305,3 +307,48 @@ def get_analytics():
         "by_category": [dict(r) for r in by_category],
         "recent_unanswered": [dict(r) for r in recent_unanswered],
     }
+
+
+def save_session(session_id: str, title: str):
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO chat_sessions (session_id, title)
+        VALUES (?, ?)
+        ON CONFLICT(session_id) DO UPDATE SET
+            title = excluded.title,
+            updated_at = CURRENT_TIMESTAMP
+    """, (session_id, title[:60]))
+    conn.commit()
+    conn.close()
+
+
+def get_all_sessions():
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT session_id, title, updated_at
+        FROM chat_sessions
+        ORDER BY updated_at DESC
+        LIMIT 20
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_session_messages(session_id: str):
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT user_query, bot_answer, timestamp
+        FROM chat_logs
+        WHERE session_id = ?
+        ORDER BY timestamp ASC
+    """, (session_id,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_session(session_id: str):
+    conn = get_conn()
+    conn.execute("DELETE FROM chat_sessions WHERE session_id = ?", (session_id,))
+    conn.execute("DELETE FROM chat_logs WHERE session_id = ?", (session_id,))
+    conn.commit()
+    conn.close()

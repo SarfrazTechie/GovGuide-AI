@@ -17,7 +17,8 @@ Endpoints:
 import uuid
 from flask import Flask, request, jsonify, render_template, session
 
-from database   import init_db, get_categories, record_feedback, get_analytics
+from database   import init_db, get_categories, record_feedback, get_analytics, \
+                       save_session, get_all_sessions, get_session_messages, delete_session
 from nlp_engine import AdvancedFAQEngine
 
 # ── App setup ────────────────────────────────────────────────────────────────
@@ -64,12 +65,14 @@ def chat():
     data     = request.get_json(force=True)
     message  = data.get("message", "").strip()
     category = data.get("category") or None
+    custom_sid = data.get("session_id") or None
 
     if not message:
         return jsonify({"error": "Empty message"}), 400
 
-    sid    = get_session_id()
+    sid = custom_sid if custom_sid else get_session_id()
     result = engine.get_answer(message, session_id=sid, category_filter=category)
+    print(f"[DEBUG] sid={sid}, custom={custom_sid}")
     return jsonify(result)
 
 
@@ -97,6 +100,32 @@ def feedback():
 def clear_session(session_id):
     engine.clear_session(session_id)
     return jsonify({"status": "cleared"})
+
+
+@app.route("/api/sessions", methods=["GET"])
+def api_sessions():
+    return jsonify({"sessions": get_all_sessions()})
+
+
+@app.route("/api/sessions", methods=["POST"])
+def api_save_session():
+    data  = request.get_json(force=True)
+    sid   = data.get("session_id","")
+    title = data.get("title","New Chat")
+    if sid:
+        save_session(sid, title)
+    return jsonify({"status": "saved"})
+
+@app.route("/api/sessions/<session_id>", methods=["GET"])
+def api_session_messages(session_id):
+    messages = get_session_messages(session_id)
+    return jsonify({"session_id": session_id, "messages": messages})
+
+
+@app.route("/api/sessions/<session_id>", methods=["DELETE"])
+def api_delete_session(session_id):
+    delete_session(session_id)
+    return jsonify({"status": "deleted"})
 
 
 @app.route("/api/categories", methods=["GET"])
