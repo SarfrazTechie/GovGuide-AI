@@ -21,7 +21,7 @@
 [data-theme="dark"]{
   --bg:#0a0f1e;--bg2:#111827;--bg3:#1a2235;
   --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
-  --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
+  --text:#f1f5f9;--text2:#c4cdd8;--text3:#7a8a9a;
   --accent:#3b82f6;--accent-soft:rgba(59,130,246,.12);--accent-border:rgba(59,130,246,.3);
   --bubble-user-bg:#1d4ed8;--bubble-user-text:#fff;
   --bubble-bot-bg:#1a2235;
@@ -45,7 +45,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 @keyframes fill{to{width:100%}}
 
 /* SIDEBAR */
-.sidebar{width:252px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:background .3s;position:relative}
+.sidebar{width:252px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:background .3s;position:relative;height:100vh}
 .sb-brand{padding:18px 16px 14px;border-bottom:1px solid var(--border)}
 .sb-logo-row{display:flex;align-items:center;gap:9px;margin-bottom:2px}
 .sb-icon{width:30px;height:30px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
@@ -53,7 +53,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .sb-brand p{font-size:11px;color:var(--text3);margin-left:39px}
 .sb-label{font-size:10px;font-weight:600;letter-spacing:1.1px;color:var(--text3);text-transform:uppercase;padding:10px 16px 6px;display:flex;align-items:center;gap:6px}
 .sb-label::before,.sb-label::after{content:'';flex:1;height:1px;background:var(--border2);opacity:0.6}
-.sb-cats{flex:1;overflow-y:auto;padding:0 8px;max-height:calc(100vh - 140px)}
+.sb-cats{overflow-y:auto;padding:0 8px}
 .sb-cats::-webkit-scrollbar{width:3px}
 .sb-cats::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
 .cat-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:none;background:none;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;border-radius:8px;cursor:pointer;transition:all .15s;text-align:left;margin-bottom:2px}
@@ -65,8 +65,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .sb-btn{flex:1;padding:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .15s;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center}
 .sb-btn:hover{background:var(--border2);color:var(--text)}
 /* Chat History */
-.sb-history{padding:0 8px;margin-bottom:4px;max-height:108px;overflow:hidden;transition:max-height .4s cubic-bezier(.4,0,.2,1)}
-.sb-history.expanded{max-height:180px;overflow-y:auto}
+.sb-history{padding:0 8px;margin-bottom:4px;flex:1;overflow-y:auto;transition:all .3s ease}
+.sb-history::-webkit-scrollbar{width:3px}
+.sb-history::-webkit-scrollbar-thumb{background:var(--accent-border);border-radius:99px}
 .sb-history.expanded::-webkit-scrollbar{width:3px}
 .sb-history.expanded::-webkit-scrollbar-thumb{background:var(--accent-border);border-radius:99px}
 .sb-history.expanded::-webkit-scrollbar{width:3px}
@@ -227,15 +228,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
     </div>
     <p>Pakistan Govt Services</p>
   </div>
- <!-- Chat History -->
-<div class="sb-history-label" onclick="toggleHistory()" style="cursor:pointer">
-  Recent Chats
-  <span id="expandBtn" style="font-size:9px;color:var(--text3);transition:transform .3s ease;display:inline-block">▼</span>
-</div>
-<div class="sb-history" id="sbHistory">
-  <div class="history-empty">No previous chats</div>
-</div>
-  <div class="sb-cats">
+ <div class="sb-cats">
   <button class="cat-btn active" data-cat="" onclick="setCat(this)">
     <span class="cat-dot"></span>All Topics
   </button>
@@ -310,6 +303,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
   </div>
 
 </div>
+
+<!-- Chat History -->
+<div class="sb-history-label">
+  Recent Chats
+</div>
+<div class="sb-history" id="sbHistory">
+  <div class="history-empty">No previous chats</div>
+</div>
+
   <div class="sb-bottom">
     <button class="sb-btn" onclick="clearChat()">New Chat</button>
     <a href="/analytics" class="sb-btn">Analytics</a>
@@ -465,6 +467,7 @@ async function loadSession(sid){
     msgsEl.innerHTML = "";
     welcomeGone = true;
     currentSessionId = sid;
+    await loadHistory(); // history refresh karo taake active session update ho
    d.messages.forEach(m => {
       addMsg("user", esc(m.user_query));
       addMsg("bot", `
