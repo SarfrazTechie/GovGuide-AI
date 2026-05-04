@@ -37,7 +37,7 @@ from database import get_all_faqs, log_chat, log_unanswered
 
 SBERT_MODEL   = "all-MiniLM-L6-v2"
 SBERT_THRESH  = 0.28
-TFIDF_WEIGHT  = 0.50
+TFIDF_WEIGHT  = 0.30
 MEMORY_TURNS  = 5
 
 STOP_WORDS = set(stopwords.words("english"))

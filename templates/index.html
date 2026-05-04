@@ -91,15 +91,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .history-item-del:hover{color:#dc2626;background:rgba(239,68,68,.1)}
 .history-empty{font-size:11px;color:var(--text3);padding:8px 10px;font-style:italic}
 
-.history-item{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;cursor:pointer;transition:all .15s;margin-bottom:2px;group:hover}
-.history-item:hover{background:var(--bg3)}
-.history-item-icon{font-size:12px;flex-shrink:0;color:var(--text3)}
-.history-item-text{flex:1;font-size:12px;color:var(--text2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.history-item-time{font-size:9px;color:var(--text3);flex-shrink:0}
-.history-item-del{font-size:11px;color:var(--text3);opacity:0;transition:opacity .15s;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px}
-.history-item:hover .history-item-del{opacity:1}
-.history-item-del:hover{color:var(--red);background:rgba(239,68,68,.1)}
-.history-empty{font-size:11px;color:var(--text3);padding:8px 10px;font-style:italic}
+
 /* Resizable sidebar divider */
 .sb-resizer{width:5px;cursor:col-resize;background:transparent;position:absolute;right:0;top:0;bottom:0;z-index:10;transition:background .15s}
 .sb-resizer:hover{background:var(--accent)}
@@ -257,7 +249,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
   <div class="sub-items">
     <span class="sub-item" onclick="send('How to get driving license?')">New License</span>
     <span class="sub-item" onclick="send('How to renew expired driving license?')">Renewal</span>
-    <span class="sub-item" onclick="send('What is driving license fee?')">Fee Details</span>
+    <span class="sub-item" onclick="send('What is the driving license fee? License fee kitni hai?')">Fee Details</span>
   </div>
 
   <button class="cat-btn" data-cat="FBR Tax" onclick="setCat(this)">
@@ -705,23 +697,34 @@ document.addEventListener("mouseup", () => {
 
 function formatAnswer(text){
   if(!text) return "";
-  return text
+  // HTML escape first
+  let t = text
     .replace(/&/g,"&amp;")
     .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    // (1) (2) (3) points — nai line
-    .replace(/\s*\((\d+)\)\s*/g, "<br><b>($1)</b> ")
-    // Step 1: format
-    .replace(/(Step\s*\d+:)/gi, "<br><b>$1</b>")
-    // Comma separated fee info — har fee alag line pe
-    .replace(/,\s*([\w\d]+-page|Urgent|Executive|Normal|Rs\.|Fee)/g, "<br>$1")
-    // Colon ke baad info — alag line
-    .replace(/:\s*(Rs\.|Fee|Normal|Urgent|Executive)/g, ":<br>$1")
-    // Dash bullets
-    .replace(/\s*—\s*/g, "<br>— ")
-    // Required: ke baad list
-    .replace(/(Required:|Required documents:|Steps:|Documents:)/gi, "<br><b>$1</b><br>")
-    .trim();
+    .replace(/>/g,"&gt;");
+
+  // (1) (2) numbers — bold aur nai line
+  t = t.replace(/\s*\((\d+)\)\s*/g, "<br><b>($1)</b>&nbsp;");
+
+  // Step 1: Step 2: bold
+  t = t.replace(/(Step\s*\d+:)/gi, "<br><b>$1</b>&nbsp;");
+
+  // Fee lines — comma ke baad nai line
+  t = t.replace(/,\s*(Punjab|Sindh|KPK|Balochistan|Urgent|Executive|Normal|Adult|Child)/g, "<br>$1");
+
+  // Colon ke baad nai line agar fee/Rs info ho
+  t = t.replace(/:\s*(Rs\.|Normal|Urgent|Executive|Adult|Child)/g, ":<br>$1");
+
+  // Dash
+  t = t.replace(/\s*—\s*/g, "<br>&mdash;&nbsp;");
+
+  // Labels bold
+  t = t.replace(/(Required:|Documents:|Steps:|Note:|Fee:|Process:)/gi, "<b>$1</b>");
+
+  // Period ke baad sentence break agar next word capital ho
+  t = t.replace(/\.\s+([A-Z])/g, ".<br>$1");
+
+  return t.trim();
 }
 
 function esc(t){

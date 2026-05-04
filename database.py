@@ -43,6 +43,12 @@ def init_db():
             timestamp    DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS unanswered_queries (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            query     TEXT    NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS chat_sessions (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT    NOT NULL UNIQUE,
@@ -114,7 +120,8 @@ def _seed_faqs(cursor):
 
         ("Driving License", "How to renew expired driving license?",
          "Driving license renewal steps: (1) Visit district Licensing Authority with old license, CNIC, photos and renewal fee, (2) Expired less than 1 year = no test required, direct renewal, (3) Expired 1-3 years = written test only, (4) Expired more than 3 years = full test required again, (5) Online renewal available in some districts. Fee: Punjab Rs.790, Sindh Rs.900."),
-
+        ("Driving License", "What is the driving license fee? License fee kitni hai? How much does license cost?",
+         "Driving license fee by province: (1) Punjab: New = Rs.990, Renewal = Rs.790, (2) Sindh: New = Rs.1000, Renewal = Rs.900, (3) KPK: New = Rs.850, Renewal = Rs.750, (4) Balochistan: New = Rs.800, (5) International Driving Permit = Rs.1500 extra. Fees may vary slightly by district."),
         ("Driving License", "What are the types and categories of driving license in Pakistan?",
          "Pakistani driving license categories: Motorcycle (LTV-M), Car/Jeep (LTV), Light Commercial Vehicle, Heavy Transport Vehicle (HTV), PSV (Public Service Vehicle for buses). Each category requires separate test. You can apply for multiple categories on same license."),
 
@@ -122,13 +129,13 @@ def _seed_faqs(cursor):
          "International Driving Permit (IDP): Apply at district Licensing Authority with valid Pakistani license, CNIC, photos, fee of Rs.1500. IDP is valid for 1 year and recognized in 150+ countries. Must carry both IDP and original Pakistani license while driving abroad."),
 
         # ── UTILITY BILLS ──────────────────────────────────
-        ("Utility Bills", "How to pay WAPDA electricity bill online?",
+        ("Utility Bills", "How to pay WAPDA electricity bill online? How to pay bijli ka bill online?",
          "Pay electricity bill online via: (1) JazzCash app — go to Bills > Electricity > enter 14-digit reference number, (2) Easypaisa app — same process, (3) Your bank mobile app — bill payment section, (4) ATM machine — use bill payment option, (5) myapps.wapda.gov.pk website. You need your 14-digit consumer reference number printed on bill."),
 
         ("Utility Bills", "How to pay SNGPL gas bill?",
          "Pay SNGPL gas bill via: (1) Online at billpay.sngpl.com.pk, (2) JazzCash or Easypaisa apps, (3) Any bank branch or ATM, (4) Pakistan Post offices, (5) Authorized franchises. You need your 10-digit consumer number on the bill. Late payment surcharge applies after due date."),
 
-        ("Utility Bills", "How to check electricity bill online?",
+        ("Utility Bills", "How to check and view electricity bill online? How to see bijli bill status?",
          "Check electricity bill online: LESCO area: lesco.gov.pk, IESCO area: iesco.com.pk, MEPCO area: mepco.com.pk, PESCO area: pesco.gov.pk, QESCO area: qesco.com.pk. Enter your 14-digit reference number. You can also check via JazzCash or Easypaisa apps under bill inquiry."),
 
         ("Utility Bills", "How to pay PTCL telephone bill?",
