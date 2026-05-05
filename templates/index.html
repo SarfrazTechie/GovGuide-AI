@@ -297,8 +297,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 </div>
 
 <!-- Chat History -->
-<div class="sb-history-label">
+<div class="sb-history-label" onclick="toggleHistory()">
   Recent Chats
+  <span id="expandBtn" class="sb-expand-btn">▼</span>
 </div>
 <div class="sb-history" id="sbHistory">
   <div class="history-empty">No previous chats</div>
@@ -578,24 +579,18 @@ async function send(text){
       // FIX: agar show_suggestion true hai to SIRF
       // "Did you mean?" dikhao aur return — answer mat dikhao
       // =====================================================
-      if(d.corrected_query && d.score < 0.30 && !d.found){
-        h += `<div class="corr-note">
-                🔍 Did you mean:
-                "<span
-                  style="cursor:pointer;text-decoration:underline;color:var(--accent)"
-                  onclick="send('${d.corrected_query.replace(/'/g,"\\'")}')">
-                  ${esc(d.corrected_query)}
-                </span>"?
-              </div>`;
-        addMsg("bot", h);
-        return; // ← yahan ruk jao, answer render mat karo
-      }
-
-      // Silent auto-correction (show_suggestion false tha,
-      // lekin query correct hui thi) — sirf note dikhao
-      if(d.corrected_query){
-        h += `<div class="corr-note">✦ Auto-corrected: "${esc(d.corrected_query)}"</div>`;
-      }
+      // Low confidence — "Did you mean?" dikhao
+if(d.corrected_query && d.show_suggestion){
+  addMsg("bot", `<div class="corr-note">
+    🔍 Did you mean: "<span
+      style="cursor:pointer;text-decoration:underline;color:var(--accent)"
+      onclick="send('${d.corrected_query.replace(/'/g,"\\'")}')">
+      ${esc(d.corrected_query)}
+    </span>"?
+    <span style="color:var(--text3);font-size:11px">&nbsp;(Click to confirm)</span>
+  </div>`);
+  return;
+}
 
       // Normal answer render
       const pct = Math.round(d.score * 100);

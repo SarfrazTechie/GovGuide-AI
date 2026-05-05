@@ -115,13 +115,12 @@ def _seed_faqs(cursor):
         ("Driving License", "How to get a driving license in Pakistan?",
          "Steps to get driving license: (1) Visit district Licensing Authority with CNIC, photos, blood group card, (2) Apply for Learner Permit (valid 6 weeks), (3) Practice driving, (4) Return for written test (traffic rules), (5) Give practical driving test, (6) Pay fee and collect license. Total process takes 6-8 weeks."),
 
-        ("Driving License", "What is the driving license fee? How much does license cost?",
+        ("Driving License", "What is the driving license fee? License fee kitni hai? How much does license cost?",
          "Driving license fee by province: (1) Punjab: New = Rs.990, Renewal = Rs.790, (2) Sindh: New = Rs.1000, Renewal = Rs.900, (3) KPK: New = Rs.850, Renewal = Rs.750, (4) Balochistan: New = Rs.800, (5) International Driving Permit = Rs.1500 extra. Fees may vary slightly by district."),
 
         ("Driving License", "How to renew expired driving license?",
          "Driving license renewal steps: (1) Visit district Licensing Authority with old license, CNIC, photos and renewal fee, (2) Expired less than 1 year = no test required, direct renewal, (3) Expired 1-3 years = written test only, (4) Expired more than 3 years = full test required again, (5) Online renewal available in some districts. Fee: Punjab Rs.790, Sindh Rs.900."),
-        ("Driving License", "What is the driving license fee? License fee kitni hai? How much does license cost?",
-         "Driving license fee by province: (1) Punjab: New = Rs.990, Renewal = Rs.790, (2) Sindh: New = Rs.1000, Renewal = Rs.900, (3) KPK: New = Rs.850, Renewal = Rs.750, (4) Balochistan: New = Rs.800, (5) International Driving Permit = Rs.1500 extra. Fees may vary slightly by district."),
+        
         ("Driving License", "What are the types and categories of driving license in Pakistan?",
          "Pakistani driving license categories: Motorcycle (LTV-M), Car/Jeep (LTV), Light Commercial Vehicle, Heavy Transport Vehicle (HTV), PSV (Public Service Vehicle for buses). Each category requires separate test. You can apply for multiple categories on same license."),
 
@@ -286,13 +285,16 @@ def record_feedback(faq_id, helpful: bool):
     conn.close()
 
 
-def get_analytics():
+def get_analytics(page: int = 1, per_page: int = 20):
     conn = get_conn()
+    offset = (page - 1) * per_page
 
     total_chats = conn.execute("SELECT COUNT(*) FROM chat_logs").fetchone()[0]
     answered = conn.execute("SELECT COUNT(*) FROM chat_logs WHERE score >= 0.35").fetchone()[0]
     unanswered = conn.execute("SELECT COUNT(*) FROM unanswered_queries").fetchone()[0]
-    avg_score = conn.execute("SELECT AVG(score) FROM chat_logs WHERE score > 0").fetchone()[0] or 0
+    avg_score = conn.execute(
+        "SELECT AVG(score) FROM chat_logs WHERE score > 0 LIMIT ?", (per_page,)
+    ).fetchone()[0] or 0
 
     by_category = conn.execute("""
         SELECT f.category, COUNT(l.id) as hits
@@ -302,10 +304,26 @@ def get_analytics():
     """).fetchall()
 
     recent_unanswered = conn.execute(
-        "SELECT query, timestamp FROM unanswered_queries ORDER BY timestamp DESC LIMIT 5"
+        "SELECT query, timestamp FROM unanswered_queries ORDER BY timestamp DESC LIMIT 10 OFFSET ?",
+        (offset,)
     ).fetchall()
 
+    total_pages = max(1, (unanswered + per_page - 1) // per_page)
+
     conn.close()
+    return {
+        "total_chats": total_chats,
+        "answered": answered,
+        "unanswered_count": unanswered,
+        "avg_score": round(avg_score * 100, 1),
+        "by_category": [dict(r) for r in by_category],
+        "recent_unanswered": [dict(r) for r in recent_unanswered],
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
     return {
         "total_chats": total_chats,
         "answered": answered,

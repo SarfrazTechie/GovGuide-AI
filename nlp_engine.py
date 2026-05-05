@@ -12,6 +12,7 @@ Advanced NLP engine combining:
 import re
 import nltk
 import numpy as np
+import difflib
 from collections import deque
 from typing import Optional
 
@@ -33,7 +34,7 @@ from sentence_transformers import SentenceTransformer, util
 from database import get_all_faqs, log_chat, log_unanswered
 
 
-# ── Constants ────────────────────────────────────────────────────────────────
+# ── Constants ─────────────────────────────────────────────────────────────────
 
 SBERT_MODEL   = "all-MiniLM-L6-v2"
 SBERT_THRESH  = 0.28
@@ -44,48 +45,27 @@ STOP_WORDS = set(stopwords.words("english"))
 STOP_WORDS.update({"pakistan", "pakistani", "please", "want", "need",
                    "tell", "know", "hello", "hi", "hey"})
 
-# ── Protected Pakistani govt terms (manual fuzzy override) ───────────────────
+# ── Protected Pakistani govt terms ────────────────────────────────────────────
 PROTECTED_TERMS = {
-    # ── BISP typos ──────────────────────────────────────────────────
     "bsip": "bisp", "bsop": "bisp", "bips": "bisp", "biap": "bisp",
     "bsp": "bisp", "bisp": "bisp",
-
-    # ── NADRA typos ─────────────────────────────────────────────────
     "nadar": "nadra", "naddr": "nadra", "nadr": "nadra",
     "ndara": "nadra", "nadra": "nadra",
-
-    # ── CNIC typos ──────────────────────────────────────────────────
-    "cnis": "cnic", "cnci": "cnic", "cnci": "cnic",
-    "cnic": "cnic", "cnis": "cnic", "cni": "cnic",
-
-    # ── Passport typos ──────────────────────────────────────────────
+    "cnis": "cnic", "cnci": "cnic",
+    "cnic": "cnic", "cni": "cnic",
     "passort": "passport", "passprt": "passport", "pasport": "passport",
     "paaspot": "passport", "passpost": "passport", "passprot": "passport",
     "passpot": "passport", "passport": "passport",
-
-    # ── FBR typos ───────────────────────────────────────────────────
     "fbrr": "fbr", "fbr": "fbr", "fbro": "fbr",
-
-    # ── WAPDA typos ─────────────────────────────────────────────────
     "wapd": "wapda", "wapda": "wapda", "wapada": "wapda",
-
-    # ── SNGPL typos ─────────────────────────────────────────────────
     "sngpl": "sngpl", "sngp": "sngpl", "sngpal": "sngpl",
-
-    # ── Tax typos ───────────────────────────────────────────────────
     "tex": "tax", "taxx": "tax", "txe": "tax", "txa": "tax",
-
-    # ── Driving License typos ────────────────────────────────────────
     "drivingg": "driving", "drivng": "driving", "drving": "driving",
     "licensce": "license", "licnese": "license", "lisence": "license",
     "licanse": "license", "liscense": "license",
-
-    # ── Electricity typos ───────────────────────────────────────────
     "elecricity": "electricity", "electrcity": "electricity",
     "electicity": "electricity", "elecrity": "electricity",
     "electricty": "electricity", "elecrticity": "electricity",
-
-    # ── Common English typos ─────────────────────────────────────────
     "onlne": "online", "onlie": "online", "onlin": "online",
     "chek": "check", "chcek": "check", "chekc": "check",
     "staus": "status", "stauts": "status", "statuss": "status",
@@ -98,7 +78,7 @@ PROTECTED_TERMS = {
     "offce": "office", "ofice": "office", "offico": "office",
     "adress": "address", "addres": "address", "addrss": "address",
     "renewl": "renewal", "renwal": "renewal", "renew": "renew",
-    "expird": "expired", "expirred": "expired", "expird": "expired",
+    "expird": "expired", "expirred": "expired",
     "paymet": "payment", "paymnt": "payment", "paiment": "payment",
     "feee": "fee", "feeee": "fee", "fe": "fee",
     "dat": "date", "datte": "date", "daet": "date",
@@ -110,12 +90,10 @@ PROTECTED_TERMS = {
     "certficate": "certificate", "certificte": "certificate",
     "cetificate": "certificate", "certifcate": "certificate",
     "gass": "gas", "gaas": "gas", "gaz": "gas",
-
-    # ── Roman Urdu — common words ────────────────────────────────────
     "kaise": "kaise", "kron": "kron", "krna": "krna", "karna": "karna",
     "kese": "kese", "kya": "kya", "hai": "hai", "hain": "hain",
     "mujhe": "mujhe", "muje": "mujhe", "meri": "meri", "mera": "mera",
-    "karo": "karo", "karo": "karo", "kren": "kren", "karen": "karen",
+    "karo": "karo", "kren": "kren", "karen": "karen",
     "jana": "jana", "janna": "jana", "wala": "wala", "wali": "wali",
     "apna": "apna", "apni": "apni", "apne": "apne",
     "bijli": "bijli", "bijlee": "bijli", "bigly": "bijli",
@@ -138,22 +116,46 @@ PROTECTED_TERMS = {
     "number": "number", "numbre": "number", "nombor": "number",
     "mobile": "mobile", "moble": "mobile", "mobil": "mobile",
     "online": "online", "status": "status", "check": "check",
-
-    # ── Roman Urdu — govt specific ───────────────────────────────────
     "shnaakhti": "shnaakhti", "shanakhti": "shnaakhti",
     "kaghzat": "kaghzat", "kaghzaat": "kaghzat",
     "darkhast": "darkhast", "darkwast": "darkhast",
     "mahkma": "mahkma", "mahkama": "mahkma",
     "idarah": "idarah", "idara": "idarah",
     "raseed": "raseed", "rasid": "raseed",
-    "tijarat": "tijarat", "tijarat": "tijarat",
     "mulazmat": "mulazmat", "mulazmt": "mulazmat",
+    "banwana": "banwana", "banwna": "banwana", "bnwana": "banwana",
+    "banwan": "banwana", "banwa": "banwana", "bnwan": "banwana",
     "tankhwah": "tankhwah", "tankhuah": "tankhwah",
     "sarkari": "sarkari", "sarkaari": "sarkari",
     "mehkma": "mehkma", "mehkama": "mehkma",
 }
 
-# ── Preprocessor ─────────────────────────────────────────────────────────────
+
+# ── Meaningful correction helper ──────────────────────────────────────────────
+def _meaningful_correction(original: str, corrected: str) -> bool:
+    """Sirf tab True return karo jab actual meaningful words badlein."""
+    import re
+    # Punctuation remove karke compare karo
+    def normalize(text):
+        text = re.sub(r"[^a-z0-9\s]", "", text.lower().strip())
+        return text.split()
+    
+    orig_words = normalize(original)
+    corr_words = normalize(corrected)
+    
+    if orig_words == corr_words:
+        return False
+    
+    # Sirf woh words count karo jo actually different hain
+    changed = sum(
+        1 for a, b in zip(orig_words, corr_words)
+        if a != b
+    )
+    changed += abs(len(orig_words) - len(corr_words))
+    return changed > 0
+
+
+# ── Preprocessor ──────────────────────────────────────────────────────────────
 
 class Preprocessor:
     def __init__(self):
@@ -266,8 +268,9 @@ class AdvancedFAQEngine:
         corrected_query = self.preprocessor.correct_spelling(user_query)
         processed       = self.preprocessor.preprocess(corrected_query)
 
-        # Only show suggestion if meaningful correction happened
-        show_suggestion = False
+        # Meaningful correction check
+        show_suggestion = _meaningful_correction(user_query, corrected_query)
+
         if not processed.strip():
             return self._fallback(user_query, session_id, "Please add more details to your question.")
 

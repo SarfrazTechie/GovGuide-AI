@@ -15,15 +15,29 @@ Endpoints:
 """
 
 import uuid
+from dotenv import load_dotenv
+import os
+import re
 from flask import Flask, request, jsonify, render_template, session
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from database   import init_db, get_categories, record_feedback, get_analytics, \
                        save_session, get_all_sessions, get_session_messages, delete_session
 from nlp_engine import AdvancedFAQEngine
 
+load_dotenv()
+
 # ── App setup ────────────────────────────────────────────────────────────────
 app = Flask(__name__)
-app.secret_key = "govt_faq_secret_2025"   # needed for session cookies
+app.secret_key = os.getenv("SECRET_KEY", "fallback_dev_only")
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)  # needed for session cookies
 
 print("[App] Initialising database...")
 init_db()
@@ -33,8 +47,11 @@ engine = AdvancedFAQEngine()
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
-def get_session_id() -> str:
-    """Return or create a persistent session ID in the browser cookie."""
+def get_session_id(custom_sid: str = None) -> str:
+    """Frontend sid ko priority do, fallback Flask session pe."""
+    if custom_sid:
+        session["sid"] = custom_sid  # sync kar do dono ko
+        return custom_sid
     if "sid" not in session:
         session["sid"] = str(uuid.uuid4())
     return session["sid"]
@@ -56,21 +73,21 @@ def analytics_page():
 # ── API routes ────────────────────────────────────────────────────────────────
 
 @app.route("/chat", methods=["POST"])
+@limiter.limit("30 per minute")
 def chat():
-    """
-    Body: { "message": str, "category": str|null }
-    Returns: { answer, category, matched_question, score, found,
-               suggestions, corrected_query, faq_id }
-    """
     data     = request.get_json(force=True)
     message  = data.get("message", "").strip()
     category = data.get("category") or None
     custom_sid = data.get("session_id") or None
 
+    # Input sanitization
+    message = re.sub(r'[<>{}\[\]\\]', '', message)  # harmful chars remove
+    message = message[:500]  # max 500 characters
+
     if not message:
         return jsonify({"error": "Empty message"}), 400
 
-    sid = custom_sid if custom_sid else get_session_id()
+    sid = get_session_id(custom_sid)
     result = engine.get_answer(message, session_id=sid, category_filter=category)
     print(f"[DEBUG] sid={sid}, custom={custom_sid}")
     return jsonify(result)
